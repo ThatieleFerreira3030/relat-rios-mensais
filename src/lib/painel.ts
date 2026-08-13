@@ -145,44 +145,27 @@ export function agruparPorSafra(meses: MesRegistro[]): SafraResumo[] {
     }));
 }
 
+export type SafraSerieMes = {
+  rotulo: string;
+  indice: number;
+  faturamentoAtual: number | null;
+  faturamentoAnterior: number | null;
+  aReceberAtual: number | null;
+  aReceberAnterior: number | null;
+  inadimplenciaAtual: number | null;
+  inadimplenciaAnterior: number | null;
+};
+
 export type ComparativoSafra = {
   atual: SafraResumo;
   anterior: SafraResumo;
   ultimoIndice: number;
-  faturamentoAtual: number;
-  faturamentoAnterior: number;
-  variacaoFaturamento: number | null;
-  aReceberAtual: number | null;
-  aReceberAnterior: number | null;
-  variacaoAReceber: number | null;
-  emAtrasoAtual: number | null;
-  emAtrasoAnterior: number | null;
-  variacaoEmAtraso: number | null;
-  pctInadimplenciaAtual: number | null;
-  pctInadimplenciaAnterior: number | null;
-  serie: { rotulo: string; indice: number; atual: number | null; anterior: number | null }[];
+  serie: SafraSerieMes[];
 };
-
-function somaFaturamento(lista: MesComIndice[]): number {
-  return lista.reduce((s, m) => s + m.faturamento, 0);
-}
-
-function ultimoValor(lista: MesComIndice[], campo: "aReceber" | "inadimplencia"): number | null {
-  for (let i = lista.length - 1; i >= 0; i -= 1) {
-    const v = lista[i]?.[campo];
-    if (v !== null && v !== undefined) return v;
-  }
-  return null;
-}
-
-function variacao(atual: number | null, anterior: number | null): number | null {
-  if (atual === null || !anterior) return null;
-  return atual / anterior - 1;
-}
 
 /**
  * Compara a safra mais recente (abr a mar, em andamento ou não) com o mesmo
- * intervalo de meses da safra imediatamente anterior.
+ * intervalo de meses da safra imediatamente anterior, mês a mês.
  */
 export function compararComSafraAnterior(meses: MesRegistro[]): ComparativoSafra | null {
   const safras = agruparPorSafra(meses);
@@ -193,15 +176,7 @@ export function compararComSafraAnterior(meses: MesRegistro[]): ComparativoSafra
   if (!anterior) return null;
 
   const ultimoIndice = atual.meses[atual.meses.length - 1]?.indice ?? 0;
-  const anteriorAteAgora = anterior.meses.filter((m) => m.indice <= ultimoIndice);
-  if (!anteriorAteAgora.length) return null;
-
-  const faturamentoAtual = somaFaturamento(atual.meses);
-  const faturamentoAnterior = somaFaturamento(anteriorAteAgora);
-  const aReceberAtual = ultimoValor(atual.meses, "aReceber");
-  const aReceberAnterior = ultimoValor(anteriorAteAgora, "aReceber");
-  const emAtrasoAtual = ultimoValor(atual.meses, "inadimplencia");
-  const emAtrasoAnterior = ultimoValor(anteriorAteAgora, "inadimplencia");
+  if (!anterior.meses.some((m) => m.indice <= ultimoIndice)) return null;
 
   const serie = Array.from({ length: 12 }, (_, i) => {
     const indice = i + 1;
@@ -210,30 +185,24 @@ export function compararComSafraAnterior(meses: MesRegistro[]): ComparativoSafra
     return {
       rotulo: rotuloMesSafra(indice),
       indice,
-      atual: mAtual ? mAtual.faturamento : null,
-      anterior: mAnterior ? mAnterior.faturamento : null,
+      faturamentoAtual: mAtual ? mAtual.faturamento : null,
+      faturamentoAnterior: mAnterior ? mAnterior.faturamento : null,
+      aReceberAtual: mAtual?.aReceber ?? null,
+      aReceberAnterior: mAnterior?.aReceber ?? null,
+      inadimplenciaAtual: mAtual?.inadimplencia ?? null,
+      inadimplenciaAnterior: mAnterior?.inadimplencia ?? null,
     };
-  }).filter((m) => m.atual !== null || m.anterior !== null);
+  }).filter(
+    (m) =>
+      m.faturamentoAtual !== null ||
+      m.faturamentoAnterior !== null ||
+      m.aReceberAtual !== null ||
+      m.aReceberAnterior !== null ||
+      m.inadimplenciaAtual !== null ||
+      m.inadimplenciaAnterior !== null,
+  );
 
-  return {
-    atual,
-    anterior,
-    ultimoIndice,
-    faturamentoAtual,
-    faturamentoAnterior,
-    variacaoFaturamento: variacao(faturamentoAtual, faturamentoAnterior),
-    aReceberAtual,
-    aReceberAnterior,
-    variacaoAReceber: variacao(aReceberAtual, aReceberAnterior),
-    emAtrasoAtual,
-    emAtrasoAnterior,
-    variacaoEmAtraso: variacao(emAtrasoAtual, emAtrasoAnterior),
-    pctInadimplenciaAtual:
-      aReceberAtual && emAtrasoAtual !== null ? emAtrasoAtual / aReceberAtual : null,
-    pctInadimplenciaAnterior:
-      aReceberAnterior && emAtrasoAnterior !== null ? emAtrasoAnterior / aReceberAnterior : null,
-    serie,
-  };
+  return { atual, anterior, ultimoIndice, serie };
 }
 
 function num(v: unknown): number {
