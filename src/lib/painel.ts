@@ -52,7 +52,7 @@ const MESES_PT = [
 ];
 
 export function rotuloMes(chave: string) {
-  const [ano, mes] = chave.split("-");
+  const [ano = "", mes = ""] = chave.split("-");
   const i = Number(mes) - 1;
   return `${MESES_PT[i] ?? mes}/${ano.slice(2)}`;
 }
@@ -95,9 +95,10 @@ function num(v: unknown): number {
 function chaveMesDeAbrev(texto: string): string | null {
   const m = String(texto).trim().toLowerCase().match(/^([a-zç]{3})\/(\d{2,4})$/);
   if (!m) return null;
-  const i = MESES_PT.indexOf(m[1]);
+  const i = MESES_PT.indexOf(m[1] ?? "");
   if (i < 0) return null;
-  const ano = m[2].length === 2 ? `20${m[2]}` : m[2];
+  const bruto = m[2] ?? "";
+  const ano = bruto.length === 2 ? `20${bruto}` : bruto;
   return `${ano}-${String(i + 1).padStart(2, "0")}`;
 }
 
