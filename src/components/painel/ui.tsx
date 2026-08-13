@@ -7,9 +7,9 @@ export function Secao({
   acao,
 }: {
   titulo: string;
-  descricao?: string;
+  descricao?: string | undefined;
   children: ReactNode;
-  acao?: ReactNode;
+  acao?: ReactNode | undefined;
 }) {
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_1px_0_0_var(--color-border)] sm:p-6">
@@ -35,8 +35,8 @@ export function Kpi({
 }: {
   rotulo: string;
   valor: string;
-  detalhe?: string;
-  tom?: "neutro" | "positivo" | "alerta";
+  detalhe?: string | undefined;
+  tom?: "neutro" | "positivo" | "alerta" | undefined;
 }) {
   const cor =
     tom === "alerta"

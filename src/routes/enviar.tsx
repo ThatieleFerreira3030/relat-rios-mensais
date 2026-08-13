@@ -62,7 +62,7 @@ function Enviar() {
     const { error } = await supabase.from("painel_uploads").insert({
       rotulo: rotulo || `Fechamento ${rotuloMes(previa.periodo.fim)}`,
       fonte: previa.fonte,
-      dados: previa as unknown as Record<string, unknown>,
+      dados: JSON.parse(JSON.stringify(previa)),
     });
     setOcupado(false);
     if (error) {

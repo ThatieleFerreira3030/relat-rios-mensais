@@ -208,7 +208,7 @@ function Painel() {
                     width={80}
                   />
                   <Tooltip
-                    formatter={(v: number, nome: string) => [brl(v), nome]}
+                    formatter={(v, nome) => [brl(Number(v)), String(nome)] as [string, string]}
                     contentStyle={{
                       borderRadius: 12,
                       border: "1px solid var(--color-border)",
@@ -267,7 +267,7 @@ function Painel() {
                       stroke="var(--color-muted-foreground)"
                     />
                     <Tooltip
-                      formatter={(v: number) => brl(v)}
+                      formatter={(v) => brl(Number(v))}
                       contentStyle={{
                         borderRadius: 12,
                         border: "1px solid var(--color-border)",
