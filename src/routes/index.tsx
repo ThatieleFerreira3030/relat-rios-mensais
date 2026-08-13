@@ -77,7 +77,20 @@ function Painel() {
   });
   const [mesSelecionado, setMesSelecionado] = useState<string | null>(null);
 
-  const dados = data?.dados;
+  // Bases antigas podem não ter todos os campos; normaliza para evitar quebra.
+  const dados = useMemo(() => {
+    const d = data?.dados;
+    if (!d) return undefined;
+    return {
+      ...d,
+      meses: d.meses ?? [],
+      aging: d.aging ?? [],
+      topClientes: d.topClientes ?? [],
+      topDevedores: d.topDevedores ?? [],
+      agingPorCliente: d.agingPorCliente ?? [],
+      periodo: d.periodo ?? { inicio: "", fim: "" },
+    };
+  }, [data]);
 
   const serie = useMemo(
     () =>
