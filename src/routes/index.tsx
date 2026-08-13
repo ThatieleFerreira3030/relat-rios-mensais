@@ -51,6 +51,11 @@ export const Route = createFileRoute("/")({
 
 const MESES_EVOLUCAO = 12;
 
+// Cliente com valor muito acima da média que distorce a leitura da seção
+// "Inadimplência" (a granularidade mensal da planilha não permite excluí-lo
+// mês a mês, então o ajuste usa o total atual dele como valor fixo).
+const CLIENTE_EXCLUIDO_INADIMPLENCIA = "alessandro maia de souza";
+
 async function buscarUltimo() {
   const { data, error } = await supabase
     .from("painel_uploads")
@@ -104,29 +109,49 @@ function Painel() {
 
   const serieRecente = useMemo(() => serie.slice(-MESES_EVOLUCAO), [serie]);
 
+  const ajusteInadimplencia = useMemo(() => {
+    if (!dados) return 0;
+    return dados.topDevedores
+      .filter((d) => d.nome.trim().toLowerCase() === CLIENTE_EXCLUIDO_INADIMPLENCIA)
+      .reduce((s, d) => s + d.valor, 0);
+  }, [dados]);
+
   const inadimplenciaSafraAnterior = useMemo(() => {
     if (!comparativoSafra) return null;
     const meses = comparativoSafra.anterior.meses;
     const pcts = meses
-      .map((m) => pctInadimplencia(m.aReceber, m.inadimplencia))
+      .map((m) =>
+        pctInadimplencia(
+          m.aReceber,
+          m.inadimplencia === null ? null : Math.max(0, m.inadimplencia - ajusteInadimplencia),
+        ),
+      )
       .filter((v): v is number => v !== null);
     if (!pcts.length) return null;
-    const valores = meses.map((m) => m.inadimplencia).filter((v): v is number => v !== null);
+    const valores = meses
+      .map((m) =>
+        m.inadimplencia === null ? null : Math.max(0, m.inadimplencia - ajusteInadimplencia),
+      )
+      .filter((v): v is number => v !== null);
     return {
       rotulo: comparativoSafra.anterior.rotulo,
       mediaPct: pcts.reduce((s, v) => s + v, 0) / pcts.length,
       mediaValor: valores.length ? valores.reduce((s, v) => s + v, 0) / valores.length : null,
     };
-  }, [comparativoSafra]);
+  }, [comparativoSafra, ajusteInadimplencia]);
 
   const evolucaoInadimplenciaAtual = useMemo(() => {
     if (!comparativoSafra) return [];
-    return comparativoSafra.atual.meses.map((m) => ({
-      rotulo: rotuloMes(m.mes),
-      inadimplencia: m.inadimplencia,
-      pctInad: pctInadimplencia(m.aReceber, m.inadimplencia),
-    }));
-  }, [comparativoSafra]);
+    return comparativoSafra.atual.meses.map((m) => {
+      const inadimplenciaAjustada =
+        m.inadimplencia === null ? null : Math.max(0, m.inadimplencia - ajusteInadimplencia);
+      return {
+        rotulo: rotuloMes(m.mes),
+        inadimplencia: inadimplenciaAjustada,
+        pctInad: pctInadimplencia(m.aReceber, inadimplenciaAjustada),
+      };
+    });
+  }, [comparativoSafra, ajusteInadimplencia]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
@@ -225,7 +250,7 @@ function Painel() {
           {inadimplenciaSafraAnterior ? (
             <Secao
               titulo="Inadimplência"
-              descricao={`Média da safra ${inadimplenciaSafraAnterior.rotulo} (abr a mar) e evolução mês a mês a partir de ${evolucaoInadimplenciaAtual[0]?.rotulo ?? ""}.`}
+              descricao={`Média da safra ${inadimplenciaSafraAnterior.rotulo} (abr a mar) e evolução mês a mês a partir de ${evolucaoInadimplenciaAtual[0]?.rotulo ?? ""}.${ajusteInadimplencia > 0 ? " Valores do cliente Alessandro Maia de Souza desconsiderados nesta seção." : ""}`}
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <Kpi
