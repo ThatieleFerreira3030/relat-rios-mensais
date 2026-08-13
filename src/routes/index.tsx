@@ -156,6 +156,15 @@ function Painel() {
     };
   }, [comparativoSafra, ajusteInadimplencia]);
 
+  const mediaInadimplencia12Meses = useMemo(() => {
+    const valores = serieRecente
+      .map((m) =>
+        m.inadimplencia === null ? null : Math.max(0, m.inadimplencia - ajusteInadimplencia),
+      )
+      .filter((v): v is number => v !== null);
+    return valores.length ? valores.reduce((s, v) => s + v, 0) / valores.length : null;
+  }, [serieRecente, ajusteInadimplencia]);
+
   const evolucaoInadimplenciaAtual = useMemo(() => {
     if (!comparativoSafra) return [];
     return comparativoSafra.atual.meses.map((m) => {
@@ -165,9 +174,10 @@ function Painel() {
         rotulo: rotuloMes(m.mes),
         inadimplencia: inadimplenciaAjustada,
         pctInad: pctInadimplencia(m.aReceber, inadimplenciaAjustada),
+        media12m: mediaInadimplencia12Meses,
       };
     });
-  }, [comparativoSafra, ajusteInadimplencia]);
+  }, [comparativoSafra, ajusteInadimplencia, mediaInadimplencia12Meses]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
@@ -273,13 +283,13 @@ function Painel() {
                   rotulo={`% Inadimplência média — safra ${inadimplenciaSafraAnterior.rotulo}`}
                   valor={pct(inadimplenciaSafraAnterior.mediaPct)}
                   detalhe="Média mensal de abr a mar"
-                  tom="alerta"
+                  tom="aviso"
                 />
                 <Kpi
                   rotulo={`Inadimplência média — safra ${inadimplenciaSafraAnterior.rotulo}`}
                   valor={brl(inadimplenciaSafraAnterior.mediaValor)}
                   detalhe="Valor médio em atraso por mês"
-                  tom="alerta"
+                  tom="aviso"
                 />
               </div>
               <div className="mt-6 h-72 w-full">
@@ -324,8 +334,18 @@ function Painel() {
                       yAxisId="left"
                       dataKey="inadimplencia"
                       name="Inadimplência"
-                      fill="var(--color-chart-3)"
+                      fill="var(--color-chart-2)"
                       radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="media12m"
+                      name="Média 12 meses"
+                      stroke="var(--color-chart-3)"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
                     />
                     <Line
                       yAxisId="right"
