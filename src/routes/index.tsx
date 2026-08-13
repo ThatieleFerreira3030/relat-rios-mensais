@@ -19,6 +19,7 @@ import { Kpi, Secao } from "@/components/painel/ui";
 import {
   brl,
   compararComSafraAnterior,
+  ORDEM_FAIXAS,
   pct,
   pctInadimplencia,
   rotuloMes,
@@ -26,6 +27,8 @@ import {
   type PainelUpload,
   type SafraSerieMes,
 } from "@/lib/painel";
+
+const FAIXAS_TABELA = [...ORDEM_FAIXAS].reverse();
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -487,6 +490,53 @@ function Painel() {
               </ol>
             </Secao>
           </div>
+
+          {dados.agingPorCliente.length ? (
+            <Secao
+              titulo="Abertura da carteira por cliente"
+              descricao="Aging dos títulos a receber, detalhado por cliente."
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="py-2 pr-4 font-medium">Cliente</th>
+                      {FAIXAS_TABELA.map((faixa) => (
+                        <th key={faixa} className="py-2 pr-4 text-right font-medium">
+                          {faixa}
+                        </th>
+                      ))}
+                      <th className="py-2 text-right font-medium">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {dados.agingPorCliente.slice(0, 15).map((c) => (
+                      <tr key={c.nome}>
+                        <td className="py-2.5 pr-4">{c.nome}</td>
+                        {FAIXAS_TABELA.map((faixa) => (
+                          <td key={faixa} className="py-2.5 pr-4 text-right text-muted-foreground">
+                            {c.faixas[faixa] ? brl(c.faixas[faixa]) : "—"}
+                          </td>
+                        ))}
+                        <td className="py-2.5 text-right font-medium">{brl(c.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border font-medium">
+                      <td className="py-2.5 pr-4">Total</td>
+                      {FAIXAS_TABELA.map((faixa) => (
+                        <td key={faixa} className="py-2.5 pr-4 text-right">
+                          {brl(dados.aging.find((a) => a.faixa === faixa)?.valor ?? 0)}
+                        </td>
+                      ))}
+                      <td className="py-2.5 text-right">{brl(dados.kpis.carteiraTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Secao>
+          ) : null}
 
           <Secao titulo="Maiores clientes" descricao="Ranking por valor faturado no período.">
             <div className="overflow-x-auto">
