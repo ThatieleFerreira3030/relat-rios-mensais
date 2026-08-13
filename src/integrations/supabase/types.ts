@@ -14,7 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      painel_uploads: {
+        Row: {
+          criado_em: string
+          dados: Json
+          fonte: string | null
+          id: string
+          rotulo: string
+        }
+        Insert: {
+          criado_em?: string
+          dados: Json
+          fonte?: string | null
+          id?: string
+          rotulo: string
+        }
+        Update: {
+          criado_em?: string
+          dados?: Json
+          fonte?: string | null
+          id?: string
+          rotulo?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
