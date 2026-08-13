@@ -547,21 +547,26 @@ function Painel() {
               titulo="Abertura da carteira por cliente"
               descricao="Aging dos títulos a receber, detalhado por cliente."
             >
-              <div className="overflow-x-auto">
+              <div className="max-h-[28rem] overflow-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                      <th className="py-2 pr-4 font-medium">Cliente</th>
+                      <th className="sticky top-0 z-10 bg-card py-2 pr-4 font-medium">Cliente</th>
                       {FAIXAS_TABELA.map((faixa) => (
-                        <th key={faixa} className="py-2 pr-4 text-right font-medium">
+                        <th
+                          key={faixa}
+                          className="sticky top-0 z-10 bg-card py-2 pr-4 text-right font-medium"
+                        >
                           {faixa}
                         </th>
                       ))}
-                      <th className="py-2 text-right font-medium">Total</th>
+                      <th className="sticky top-0 z-10 bg-card py-2 text-right font-medium">
+                        Total
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {dados.agingPorCliente.slice(0, 15).map((c) => (
+                    {dados.agingPorCliente.map((c) => (
                       <tr key={c.nome}>
                         <td className="py-2.5 pr-4">{c.nome}</td>
                         {FAIXAS_TABELA.map((faixa) => (
@@ -574,7 +579,7 @@ function Painel() {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-border font-medium">
+                    <tr className="sticky bottom-0 border-t border-border bg-card font-medium">
                       <td className="py-2.5 pr-4">Total</td>
                       {FAIXAS_TABELA.map((faixa) => (
                         <td key={faixa} className="py-2.5 pr-4 text-right">
