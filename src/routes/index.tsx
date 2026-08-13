@@ -20,6 +20,7 @@ import {
   brl,
   compararComSafraAnterior,
   pct,
+  pctInadimplencia,
   rotuloMes,
   rotuloMesSafra,
   type PainelUpload,
@@ -75,7 +76,7 @@ function Painel() {
       (dados?.meses ?? []).map((m) => ({
         ...m,
         rotulo: rotuloMes(m.mes),
-        pctInad: m.aReceber && m.inadimplencia ? m.inadimplencia / m.aReceber : null,
+        pctInad: pctInadimplencia(m.aReceber, m.inadimplencia),
       })),
     [dados],
   );
@@ -102,6 +103,30 @@ function Painel() {
   );
 
   const serieRecente = useMemo(() => serie.slice(-MESES_EVOLUCAO), [serie]);
+
+  const inadimplenciaSafraAnterior = useMemo(() => {
+    if (!comparativoSafra) return null;
+    const meses = comparativoSafra.anterior.meses;
+    const pcts = meses
+      .map((m) => pctInadimplencia(m.aReceber, m.inadimplencia))
+      .filter((v): v is number => v !== null);
+    if (!pcts.length) return null;
+    const valores = meses.map((m) => m.inadimplencia).filter((v): v is number => v !== null);
+    return {
+      rotulo: comparativoSafra.anterior.rotulo,
+      mediaPct: pcts.reduce((s, v) => s + v, 0) / pcts.length,
+      mediaValor: valores.length ? valores.reduce((s, v) => s + v, 0) / valores.length : null,
+    };
+  }, [comparativoSafra]);
+
+  const evolucaoInadimplenciaAtual = useMemo(() => {
+    if (!comparativoSafra) return [];
+    return comparativoSafra.atual.meses.map((m) => ({
+      rotulo: rotuloMes(m.mes),
+      inadimplencia: m.inadimplencia,
+      pctInad: pctInadimplencia(m.aReceber, m.inadimplencia),
+    }));
+  }, [comparativoSafra]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
@@ -193,6 +218,85 @@ function Painel() {
                   nomeAtual={`Safra ${comparativoSafra.atual.rotulo}`}
                   nomeAnterior={`Safra ${comparativoSafra.anterior.rotulo}`}
                 />
+              </div>
+            </Secao>
+          ) : null}
+
+          {inadimplenciaSafraAnterior ? (
+            <Secao
+              titulo="Inadimplência"
+              descricao={`Média da safra ${inadimplenciaSafraAnterior.rotulo} (abr a mar) e evolução mês a mês a partir de ${evolucaoInadimplenciaAtual[0]?.rotulo ?? ""}.`}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Kpi
+                  rotulo={`% Inadimplência média — safra ${inadimplenciaSafraAnterior.rotulo}`}
+                  valor={pct(inadimplenciaSafraAnterior.mediaPct)}
+                  detalhe="Média mensal de abr a mar"
+                  tom="alerta"
+                />
+                <Kpi
+                  rotulo={`Inadimplência média — safra ${inadimplenciaSafraAnterior.rotulo}`}
+                  valor={brl(inadimplenciaSafraAnterior.mediaValor)}
+                  detalhe="Valor médio em atraso por mês"
+                  tom="alerta"
+                />
+              </div>
+              <div className="mt-6 h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={evolucaoInadimplenciaAtual}
+                    margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                    <XAxis dataKey="rotulo" fontSize={12} stroke="var(--color-muted-foreground)" />
+                    <YAxis
+                      yAxisId="left"
+                      fontSize={12}
+                      stroke="var(--color-muted-foreground)"
+                      tickFormatter={(v: number) => brl(v, true)}
+                      width={80}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      fontSize={12}
+                      stroke="var(--color-muted-foreground)"
+                      tickFormatter={(v: number) => pct(v, 0)}
+                      width={60}
+                    />
+                    <Tooltip
+                      formatter={(v, nome) =>
+                        [
+                          nome === "% Inadimplência" ? pct(Number(v)) : brl(Number(v)),
+                          String(nome),
+                        ] as [string, string]
+                      }
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-card)",
+                        fontSize: 12,
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="inadimplencia"
+                      name="Inadimplência"
+                      fill="var(--color-chart-3)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="pctInad"
+                      name="% Inadimplência"
+                      stroke="var(--color-chart-1)"
+                      strokeWidth={2.5}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </Secao>
           ) : null}
