@@ -80,6 +80,14 @@ export function pct(valor: number | null | undefined, casas = 1) {
   })}%`;
 }
 
+export function pctInadimplencia(
+  aReceber: number | null,
+  inadimplencia: number | null,
+): number | null {
+  if (!aReceber || inadimplencia === null) return null;
+  return inadimplencia / aReceber;
+}
+
 const ORDEM_FAIXAS = ["Em Dia", "0-30", "31-60", "61-90", "+90"];
 
 const ROTULOS_MES_SAFRA = [
