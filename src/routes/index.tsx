@@ -218,7 +218,7 @@ function Painel() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Kpi rotulo="Faturamento" valor={brl(mesAtual.faturamento)} tom="positivo" />
                 <Kpi
-                  rotulo="Variação M/M"
+                  rotulo="Variação M/M (Faturamento)"
                   valor={variacao === null ? "—" : pct(variacao)}
                   detalhe={mesAnterior ? `vs. ${mesAnterior.rotulo}` : undefined}
                   tom={variacao !== null && variacao < 0 ? "alerta" : "positivo"}
