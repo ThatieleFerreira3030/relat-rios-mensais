@@ -48,6 +48,8 @@ export const Route = createFileRoute("/")({
   component: Painel,
 });
 
+const MESES_EVOLUCAO = 12;
+
 async function buscarUltimo() {
   const { data, error } = await supabase
     .from("painel_uploads")
@@ -98,6 +100,8 @@ function Painel() {
     () => (dados ? compararComSafraAnterior(dados.meses) : null),
     [dados],
   );
+
+  const serieRecente = useMemo(() => serie.slice(-MESES_EVOLUCAO), [serie]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
@@ -232,11 +236,14 @@ function Painel() {
 
           <Secao
             titulo="Evolução mensal"
-            descricao="Faturamento por tipo de produto e evolução da inadimplência."
+            descricao={`Faturamento por tipo de produto e evolução da inadimplência nos últimos ${MESES_EVOLUCAO} meses.`}
           >
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={serie} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                <ComposedChart
+                  data={serieRecente}
+                  margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="rotulo" fontSize={12} stroke="var(--color-muted-foreground)" />
                   <YAxis
