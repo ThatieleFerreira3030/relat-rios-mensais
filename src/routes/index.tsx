@@ -23,6 +23,7 @@ import {
   rotuloMes,
   rotuloMesSafra,
   type PainelUpload,
+  type SafraSerieMes,
 } from "@/lib/painel";
 
 export const Route = createFileRoute("/")({
@@ -163,82 +164,31 @@ function Painel() {
               titulo={`Safra ${comparativoSafra.atual.rotulo} vs. safra ${comparativoSafra.anterior.rotulo}`}
               descricao={`Safra de abril a março: o que já foi realizado de ${rotuloMesSafra(1)} a ${rotuloMesSafra(comparativoSafra.ultimoIndice)} frente ao mesmo intervalo da safra anterior.`}
             >
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Kpi
-                  rotulo="Faturamento no período"
-                  valor={brl(comparativoSafra.faturamentoAtual)}
-                  detalhe={`${brl(comparativoSafra.faturamentoAnterior)} na safra ${comparativoSafra.anterior.rotulo}${
-                    comparativoSafra.variacaoFaturamento !== null
-                      ? ` · ${pct(comparativoSafra.variacaoFaturamento)}`
-                      : ""
-                  }`}
-                  tom={
-                    comparativoSafra.variacaoFaturamento !== null &&
-                    comparativoSafra.variacaoFaturamento < 0
-                      ? "alerta"
-                      : "positivo"
-                  }
+              <div className="space-y-8">
+                <GraficoComparativoSafra
+                  titulo="Faturamento"
+                  dados={comparativoSafra.serie}
+                  chaveAtual="faturamentoAtual"
+                  chaveAnterior="faturamentoAnterior"
+                  nomeAtual={`Safra ${comparativoSafra.atual.rotulo}`}
+                  nomeAnterior={`Safra ${comparativoSafra.anterior.rotulo}`}
                 />
-                <Kpi
-                  rotulo="Carteira a receber"
-                  valor={brl(comparativoSafra.aReceberAtual)}
-                  detalhe={`${brl(comparativoSafra.aReceberAnterior)} na safra ${comparativoSafra.anterior.rotulo}`}
+                <GraficoComparativoSafra
+                  titulo="Carteira a receber"
+                  dados={comparativoSafra.serie}
+                  chaveAtual="aReceberAtual"
+                  chaveAnterior="aReceberAnterior"
+                  nomeAtual={`Safra ${comparativoSafra.atual.rotulo}`}
+                  nomeAnterior={`Safra ${comparativoSafra.anterior.rotulo}`}
                 />
-                <Kpi
-                  rotulo="Em atraso"
-                  valor={brl(comparativoSafra.emAtrasoAtual)}
-                  detalhe={`${brl(comparativoSafra.emAtrasoAnterior)} na safra ${comparativoSafra.anterior.rotulo}`}
-                  tom="alerta"
+                <GraficoComparativoSafra
+                  titulo="Inadimplência"
+                  dados={comparativoSafra.serie}
+                  chaveAtual="inadimplenciaAtual"
+                  chaveAnterior="inadimplenciaAnterior"
+                  nomeAtual={`Safra ${comparativoSafra.atual.rotulo}`}
+                  nomeAnterior={`Safra ${comparativoSafra.anterior.rotulo}`}
                 />
-                <Kpi
-                  rotulo="% Inadimplência"
-                  valor={pct(comparativoSafra.pctInadimplenciaAtual)}
-                  detalhe={
-                    comparativoSafra.pctInadimplenciaAnterior !== null
-                      ? `${pct(comparativoSafra.pctInadimplenciaAnterior)} na safra ${comparativoSafra.anterior.rotulo}`
-                      : undefined
-                  }
-                  tom="alerta"
-                />
-              </div>
-              <div className="mt-6 h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={comparativoSafra.serie}
-                    margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                    <XAxis dataKey="rotulo" fontSize={12} stroke="var(--color-muted-foreground)" />
-                    <YAxis
-                      fontSize={12}
-                      stroke="var(--color-muted-foreground)"
-                      tickFormatter={(v: number) => brl(v, true)}
-                      width={80}
-                    />
-                    <Tooltip
-                      formatter={(v, nome) => [brl(Number(v)), String(nome)] as [string, string]}
-                      contentStyle={{
-                        borderRadius: 12,
-                        border: "1px solid var(--color-border)",
-                        background: "var(--color-card)",
-                        fontSize: 12,
-                      }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar
-                      dataKey="anterior"
-                      name={`Safra ${comparativoSafra.anterior.rotulo}`}
-                      fill="var(--color-chart-2)"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="atual"
-                      name={`Safra ${comparativoSafra.atual.rotulo}`}
-                      fill="var(--color-chart-1)"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
               </div>
             </Secao>
           ) : null}
@@ -471,5 +421,63 @@ function Painel() {
         </div>
       )}
     </main>
+  );
+}
+
+function GraficoComparativoSafra({
+  titulo,
+  dados,
+  chaveAtual,
+  chaveAnterior,
+  nomeAtual,
+  nomeAnterior,
+}: {
+  titulo: string;
+  dados: SafraSerieMes[];
+  chaveAtual: keyof SafraSerieMes;
+  chaveAnterior: keyof SafraSerieMes;
+  nomeAtual: string;
+  nomeAnterior: string;
+}) {
+  return (
+    <div>
+      <h3 className="mb-3 text-sm font-medium text-foreground">{titulo}</h3>
+      <div className="h-64 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="rotulo" fontSize={12} stroke="var(--color-muted-foreground)" />
+            <YAxis
+              fontSize={12}
+              stroke="var(--color-muted-foreground)"
+              tickFormatter={(v: number) => brl(v, true)}
+              width={80}
+            />
+            <Tooltip
+              formatter={(v, nome) => [brl(Number(v)), String(nome)] as [string, string]}
+              contentStyle={{
+                borderRadius: 12,
+                border: "1px solid var(--color-border)",
+                background: "var(--color-card)",
+                fontSize: 12,
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar
+              dataKey={chaveAnterior}
+              name={nomeAnterior}
+              fill="var(--color-chart-2)"
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar
+              dataKey={chaveAtual}
+              name={nomeAtual}
+              fill="var(--color-chart-1)"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
