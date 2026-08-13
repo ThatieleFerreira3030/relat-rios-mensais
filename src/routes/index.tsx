@@ -159,7 +159,10 @@ function Painel() {
   const mediaInadimplencia12Meses = useMemo(() => {
     const valores = serieRecente
       .map((m) =>
-        m.inadimplencia === null ? null : Math.max(0, m.inadimplencia - ajusteInadimplencia),
+        pctInadimplencia(
+          m.aReceber,
+          m.inadimplencia === null ? null : Math.max(0, m.inadimplencia - ajusteInadimplencia),
+        ),
       )
       .filter((v): v is number => v !== null);
     return valores.length ? valores.reduce((s, v) => s + v, 0) / valores.length : null;
@@ -318,7 +321,7 @@ function Painel() {
                     <Tooltip
                       formatter={(v, nome) =>
                         [
-                          nome === "% Inadimplência" ? pct(Number(v)) : brl(Number(v)),
+                          nome === "Inadimplência" ? brl(Number(v)) : pct(Number(v)),
                           String(nome),
                         ] as [string, string]
                       }
@@ -338,7 +341,7 @@ function Painel() {
                       radius={[4, 4, 0, 0]}
                     />
                     <Line
-                      yAxisId="left"
+                      yAxisId="right"
                       type="monotone"
                       dataKey="media12m"
                       name="Média 12 meses"
