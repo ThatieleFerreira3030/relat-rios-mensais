@@ -36,14 +36,16 @@ export function Kpi({
   rotulo: string;
   valor: string;
   detalhe?: string | undefined;
-  tom?: "neutro" | "positivo" | "alerta" | undefined;
+  tom?: "neutro" | "positivo" | "alerta" | "aviso" | undefined;
 }) {
   const cor =
     tom === "alerta"
       ? "text-destructive"
-      : tom === "positivo"
-        ? "text-primary"
-        : "text-foreground";
+      : tom === "aviso"
+        ? "text-[var(--color-chart-2)]"
+        : tom === "positivo"
+          ? "text-primary"
+          : "text-foreground";
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
