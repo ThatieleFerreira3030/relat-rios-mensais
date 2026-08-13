@@ -368,8 +368,7 @@ export function analisarPlanilhas(
       faixas,
       total: ORDEM_FAIXAS.reduce((s, f) => s + (faixas[f] ?? 0), 0),
     }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 20);
+    .sort((a, b) => b.total - a.total);
 
   const faturamentoTotal = meses.reduce((s, m) => s + m.faturamento, 0);
   const mesesComVenda = meses.filter((m) => m.faturamento > 0).length || 1;
