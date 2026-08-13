@@ -25,6 +25,7 @@ export type PainelDados = {
   aging: { faixa: string; valor: number; titulos: number }[];
   topClientes: { nome: string; faturado: number; carteira: number }[];
   topDevedores: { nome: string; valor: number }[];
+  agingPorCliente: { nome: string; faixas: Record<string, number>; total: number }[];
   fonte: string;
 };
 
@@ -88,7 +89,7 @@ export function pctInadimplencia(
   return inadimplencia / aReceber;
 }
 
-const ORDEM_FAIXAS = ["Em Dia", "0-30", "31-60", "61-90", "+90"];
+export const ORDEM_FAIXAS = ["Em Dia", "0-30", "31-60", "61-90", "+90"];
 
 const ROTULOS_MES_SAFRA = [
   "Abr",
@@ -319,6 +320,7 @@ export function analisarPlanilhas(
   // Aging da carteira
   const aging = new Map<string, { valor: number; titulos: number }>();
   const devedores = new Map<string, number>();
+  const agingClientes = new Map<string, Record<string, number>>();
   for (const l of carteira) {
     const faixa = String(l["FaixaAtraso"] ?? "Em Dia");
     const valor = num(l["ValorLiquido"]);
@@ -330,6 +332,10 @@ export function analisarPlanilhas(
       const nome = String(l["ClientePadrao"] ?? l["Cliente"] ?? "—").trim();
       devedores.set(nome, (devedores.get(nome) ?? 0) + valor);
     }
+    const nomeCliente = String(l["ClientePadrao"] ?? l["Cliente"] ?? "—").trim();
+    const faixasCliente = agingClientes.get(nomeCliente) ?? {};
+    faixasCliente[faixa] = (faixasCliente[faixa] ?? 0) + valor;
+    agingClientes.set(nomeCliente, faixasCliente);
   }
   const agingLista = ORDEM_FAIXAS.filter((f) => aging.has(f)).map((faixa) => ({
     faixa,
@@ -356,6 +362,15 @@ export function analisarPlanilhas(
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 20);
 
+  const agingPorCliente = Array.from(agingClientes.entries())
+    .map(([nome, faixas]) => ({
+      nome,
+      faixas,
+      total: ORDEM_FAIXAS.reduce((s, f) => s + (faixas[f] ?? 0), 0),
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 20);
+
   const faturamentoTotal = meses.reduce((s, m) => s + m.faturamento, 0);
   const mesesComVenda = meses.filter((m) => m.faturamento > 0).length || 1;
   const carteiraTotal = aVencer + emAtraso;
@@ -376,6 +391,7 @@ export function analisarPlanilhas(
     aging: agingLista,
     topClientes,
     topDevedores,
+    agingPorCliente,
     fonte: arquivos.map((a) => a.nome).join(" + "),
   };
 }
