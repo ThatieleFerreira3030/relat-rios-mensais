@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Kpi, Secao } from "@/components/painel/ui";
 import {
+  agruparPorSafra,
   brl,
   compararComSafraAnterior,
   ORDEM_FAIXAS,
@@ -123,6 +124,16 @@ function Painel() {
     [dados],
   );
 
+  const faturamentoSafraAtual = useMemo(() => {
+    if (!dados) return null;
+    const safras = agruparPorSafra(dados.meses);
+    const atual = safras[safras.length - 1];
+    if (!atual) return null;
+    const total = atual.meses.reduce((s, m) => s + m.faturamento, 0);
+    const mesesComVenda = atual.meses.filter((m) => m.faturamento > 0).length || 1;
+    return { rotulo: atual.rotulo, total, media: total / mesesComVenda };
+  }, [dados]);
+
   const serieRecente = useMemo(() => serie.slice(-MESES_EVOLUCAO), [serie]);
 
   const ajusteInadimplencia = useMemo(() => {
@@ -218,9 +229,13 @@ function Painel() {
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Kpi
-              rotulo="Faturamento do período"
-              valor={brl(dados.kpis.faturamentoTotal)}
-              detalhe={`Média mensal de ${brl(dados.kpis.faturamentoMedio)}`}
+              rotulo={
+                faturamentoSafraAtual
+                  ? `Faturamento da safra ${faturamentoSafraAtual.rotulo}`
+                  : "Faturamento do período"
+              }
+              valor={brl(faturamentoSafraAtual?.total ?? dados.kpis.faturamentoTotal)}
+              detalhe={`Média mensal de ${brl(faturamentoSafraAtual?.media ?? dados.kpis.faturamentoMedio)}`}
               tom="positivo"
             />
             <Kpi
