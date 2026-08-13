@@ -621,7 +621,10 @@ function Painel() {
             </div>
           </Secao>
 
-          <Secao titulo="Tabela mensal" descricao="Fechamento mês a mês do período analisado.">
+          <Secao
+            titulo="Acompanhamento mensal"
+            descricao="Fechamento mês a mês do período analisado."
+          >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
