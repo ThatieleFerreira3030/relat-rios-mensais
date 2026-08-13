@@ -82,6 +82,160 @@ export function pct(valor: number | null | undefined, casas = 1) {
 
 const ORDEM_FAIXAS = ["Em Dia", "0-30", "31-60", "61-90", "+90"];
 
+const ROTULOS_MES_SAFRA = [
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+  "Jan",
+  "Fev",
+  "Mar",
+];
+
+/** Ano de início da safra (abr a mar) à qual o mês pertence. Jan-Mar contam na safra do ano anterior. */
+export function anoInicioSafra(chave: string): number {
+  const [anoStr = "", mesStr = ""] = chave.split("-");
+  const ano = Number(anoStr);
+  const mes = Number(mesStr);
+  return mes >= 4 ? ano : ano - 1;
+}
+
+/** Posição do mês dentro da safra: abr = 1 ... mar = 12. */
+export function indiceMesSafra(chave: string): number {
+  const mes = Number(chave.split("-")[1] ?? 0);
+  return mes >= 4 ? mes - 3 : mes + 9;
+}
+
+export function rotuloMesSafra(indice: number): string {
+  return ROTULOS_MES_SAFRA[indice - 1] ?? String(indice);
+}
+
+export function rotuloSafra(anoInicio: number): string {
+  return `${anoInicio}/${String(anoInicio + 1).slice(2)}`;
+}
+
+export type MesComIndice = MesRegistro & { indice: number };
+
+export type SafraResumo = {
+  anoInicio: number;
+  rotulo: string;
+  meses: MesComIndice[];
+};
+
+/** Agrupa o histórico mensal em safras (abr a mar), ordenadas da mais antiga para a mais recente. */
+export function agruparPorSafra(meses: MesRegistro[]): SafraResumo[] {
+  const grupos = new Map<number, MesComIndice[]>();
+  for (const m of meses) {
+    const ano = anoInicioSafra(m.mes);
+    const lista = grupos.get(ano) ?? [];
+    lista.push({ ...m, indice: indiceMesSafra(m.mes) });
+    grupos.set(ano, lista);
+  }
+  return Array.from(grupos.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([anoInicio, lista]) => ({
+      anoInicio,
+      rotulo: rotuloSafra(anoInicio),
+      meses: lista.sort((a, b) => a.indice - b.indice),
+    }));
+}
+
+export type ComparativoSafra = {
+  atual: SafraResumo;
+  anterior: SafraResumo;
+  ultimoIndice: number;
+  faturamentoAtual: number;
+  faturamentoAnterior: number;
+  variacaoFaturamento: number | null;
+  aReceberAtual: number | null;
+  aReceberAnterior: number | null;
+  variacaoAReceber: number | null;
+  emAtrasoAtual: number | null;
+  emAtrasoAnterior: number | null;
+  variacaoEmAtraso: number | null;
+  pctInadimplenciaAtual: number | null;
+  pctInadimplenciaAnterior: number | null;
+  serie: { rotulo: string; indice: number; atual: number | null; anterior: number | null }[];
+};
+
+function somaFaturamento(lista: MesComIndice[]): number {
+  return lista.reduce((s, m) => s + m.faturamento, 0);
+}
+
+function ultimoValor(lista: MesComIndice[], campo: "aReceber" | "inadimplencia"): number | null {
+  for (let i = lista.length - 1; i >= 0; i -= 1) {
+    const v = lista[i]?.[campo];
+    if (v !== null && v !== undefined) return v;
+  }
+  return null;
+}
+
+function variacao(atual: number | null, anterior: number | null): number | null {
+  if (atual === null || !anterior) return null;
+  return atual / anterior - 1;
+}
+
+/**
+ * Compara a safra mais recente (abr a mar, em andamento ou não) com o mesmo
+ * intervalo de meses da safra imediatamente anterior.
+ */
+export function compararComSafraAnterior(meses: MesRegistro[]): ComparativoSafra | null {
+  const safras = agruparPorSafra(meses);
+  if (safras.length < 2) return null;
+
+  const atual = safras[safras.length - 1]!;
+  const anterior = safras.find((s) => s.anoInicio === atual.anoInicio - 1);
+  if (!anterior) return null;
+
+  const ultimoIndice = atual.meses[atual.meses.length - 1]?.indice ?? 0;
+  const anteriorAteAgora = anterior.meses.filter((m) => m.indice <= ultimoIndice);
+  if (!anteriorAteAgora.length) return null;
+
+  const faturamentoAtual = somaFaturamento(atual.meses);
+  const faturamentoAnterior = somaFaturamento(anteriorAteAgora);
+  const aReceberAtual = ultimoValor(atual.meses, "aReceber");
+  const aReceberAnterior = ultimoValor(anteriorAteAgora, "aReceber");
+  const emAtrasoAtual = ultimoValor(atual.meses, "inadimplencia");
+  const emAtrasoAnterior = ultimoValor(anteriorAteAgora, "inadimplencia");
+
+  const serie = Array.from({ length: 12 }, (_, i) => {
+    const indice = i + 1;
+    const mAtual = atual.meses.find((m) => m.indice === indice);
+    const mAnterior = anterior.meses.find((m) => m.indice === indice);
+    return {
+      rotulo: rotuloMesSafra(indice),
+      indice,
+      atual: mAtual ? mAtual.faturamento : null,
+      anterior: mAnterior ? mAnterior.faturamento : null,
+    };
+  }).filter((m) => m.atual !== null || m.anterior !== null);
+
+  return {
+    atual,
+    anterior,
+    ultimoIndice,
+    faturamentoAtual,
+    faturamentoAnterior,
+    variacaoFaturamento: variacao(faturamentoAtual, faturamentoAnterior),
+    aReceberAtual,
+    aReceberAnterior,
+    variacaoAReceber: variacao(aReceberAtual, aReceberAnterior),
+    emAtrasoAtual,
+    emAtrasoAnterior,
+    variacaoEmAtraso: variacao(emAtrasoAtual, emAtrasoAnterior),
+    pctInadimplenciaAtual:
+      aReceberAtual && emAtrasoAtual !== null ? emAtrasoAtual / aReceberAtual : null,
+    pctInadimplenciaAnterior:
+      aReceberAnterior && emAtrasoAnterior !== null ? emAtrasoAnterior / aReceberAnterior : null,
+    serie,
+  };
+}
+
 function num(v: unknown): number {
   if (typeof v === "number") return v;
   if (typeof v === "string") {

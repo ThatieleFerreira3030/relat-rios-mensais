@@ -16,7 +16,14 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { Kpi, Secao } from "@/components/painel/ui";
-import { brl, pct, rotuloMes, type PainelUpload } from "@/lib/painel";
+import {
+  brl,
+  compararComSafraAnterior,
+  pct,
+  rotuloMes,
+  rotuloMesSafra,
+  type PainelUpload,
+} from "@/lib/painel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -86,6 +93,11 @@ function Painel() {
       ? mesAtual.faturamento / mesAnterior.faturamento - 1
       : null;
 
+  const comparativoSafra = useMemo(
+    () => (dados ? compararComSafraAnterior(dados.meses) : null),
+    [dados],
+  );
+
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
       <header className="mb-8">
@@ -145,6 +157,91 @@ function Painel() {
               tom="alerta"
             />
           </div>
+
+          {comparativoSafra ? (
+            <Secao
+              titulo={`Safra ${comparativoSafra.atual.rotulo} vs. safra ${comparativoSafra.anterior.rotulo}`}
+              descricao={`Safra de abril a março: o que já foi realizado de ${rotuloMesSafra(1)} a ${rotuloMesSafra(comparativoSafra.ultimoIndice)} frente ao mesmo intervalo da safra anterior.`}
+            >
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Kpi
+                  rotulo="Faturamento no período"
+                  valor={brl(comparativoSafra.faturamentoAtual)}
+                  detalhe={`${brl(comparativoSafra.faturamentoAnterior)} na safra ${comparativoSafra.anterior.rotulo}${
+                    comparativoSafra.variacaoFaturamento !== null
+                      ? ` · ${pct(comparativoSafra.variacaoFaturamento)}`
+                      : ""
+                  }`}
+                  tom={
+                    comparativoSafra.variacaoFaturamento !== null &&
+                    comparativoSafra.variacaoFaturamento < 0
+                      ? "alerta"
+                      : "positivo"
+                  }
+                />
+                <Kpi
+                  rotulo="Carteira a receber"
+                  valor={brl(comparativoSafra.aReceberAtual)}
+                  detalhe={`${brl(comparativoSafra.aReceberAnterior)} na safra ${comparativoSafra.anterior.rotulo}`}
+                />
+                <Kpi
+                  rotulo="Em atraso"
+                  valor={brl(comparativoSafra.emAtrasoAtual)}
+                  detalhe={`${brl(comparativoSafra.emAtrasoAnterior)} na safra ${comparativoSafra.anterior.rotulo}`}
+                  tom="alerta"
+                />
+                <Kpi
+                  rotulo="% Inadimplência"
+                  valor={pct(comparativoSafra.pctInadimplenciaAtual)}
+                  detalhe={
+                    comparativoSafra.pctInadimplenciaAnterior !== null
+                      ? `${pct(comparativoSafra.pctInadimplenciaAnterior)} na safra ${comparativoSafra.anterior.rotulo}`
+                      : undefined
+                  }
+                  tom="alerta"
+                />
+              </div>
+              <div className="mt-6 h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={comparativoSafra.serie}
+                    margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                    <XAxis dataKey="rotulo" fontSize={12} stroke="var(--color-muted-foreground)" />
+                    <YAxis
+                      fontSize={12}
+                      stroke="var(--color-muted-foreground)"
+                      tickFormatter={(v: number) => brl(v, true)}
+                      width={80}
+                    />
+                    <Tooltip
+                      formatter={(v, nome) => [brl(Number(v)), String(nome)] as [string, string]}
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-card)",
+                        fontSize: 12,
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar
+                      dataKey="anterior"
+                      name={`Safra ${comparativoSafra.anterior.rotulo}`}
+                      fill="var(--color-chart-2)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="atual"
+                      name={`Safra ${comparativoSafra.atual.rotulo}`}
+                      fill="var(--color-chart-1)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Secao>
+          ) : null}
 
           <Secao
             titulo="Destaque do mês"
