@@ -224,8 +224,17 @@ function num(v: unknown): number {
   return 0;
 }
 
-function chaveMesDeAbrev(texto: string): string | null {
-  const m = String(texto).trim().toLowerCase().match(/^([a-zç]{3})\/(\d{2,4})$/);
+function chaveMesDeAbrev(valor: unknown): string | null {
+  // Algumas exportações trazem a coluna "Meses" como data (ex.: 2025-04-01)
+  // em vez do texto abreviado "abr/25".
+  if (valor instanceof Date) {
+    if (Number.isNaN(valor.getTime())) return null;
+    return `${valor.getFullYear()}-${String(valor.getMonth() + 1).padStart(2, "0")}`;
+  }
+  const m = String(valor ?? "")
+    .trim()
+    .toLowerCase()
+    .match(/^([a-zç]{3})\/(\d{2,4})$/);
   if (!m) return null;
   const i = MESES_PT.indexOf(m[1] ?? "");
   if (i < 0) return null;
@@ -298,7 +307,7 @@ export function analisarPlanilhas(
   // Carteira / inadimplência mensal vinda do resumo executivo
   const resumoPorMes = new Map<string, { aReceber: number; inadimplencia: number }>();
   for (const l of baseResumo) {
-    const chave = chaveMesDeAbrev(String(l["Meses"] ?? ""));
+    const chave = chaveMesDeAbrev(l["Meses"]);
     if (!chave) continue;
     resumoPorMes.set(chave, {
       aReceber: num(l["Total a Receber"]),
