@@ -17,7 +17,7 @@ export function Secao({
         <div className="flex items-start gap-2.5">
           <span className="mt-2 inline-block size-2 shrink-0 rounded-full bg-primary" aria-hidden />
           <div>
-            <h2 className="text-lg text-foreground sm:text-xl">{titulo}</h2>
+            <h2 className="font-sans text-lg font-semibold text-foreground sm:text-xl">{titulo}</h2>
             {descricao ? <p className="mt-1 text-sm text-muted-foreground">{descricao}</p> : null}
           </div>
         </div>
