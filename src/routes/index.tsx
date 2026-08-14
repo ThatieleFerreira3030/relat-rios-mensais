@@ -201,10 +201,10 @@ function Painel() {
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
       <header className="mb-8">
-        <p className="text-xs font-medium uppercase tracking-[0.25em] text-accent-foreground">
+        <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground">
           Relatório mensal
-        </p>
-        <h1 className="mt-2 text-3xl text-foreground sm:text-4xl">
+        </span>
+        <h1 className="mt-3 text-3xl text-foreground sm:text-4xl">
           Faturamento &amp; Inadimplência
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
@@ -225,7 +225,7 @@ function Painel() {
           </p>
           <Link
             to="/enviar"
-            className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            className="mt-4 inline-flex rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
           >
             Enviar planilha
           </Link>
@@ -242,23 +242,28 @@ function Painel() {
               valor={brl(faturamentoSafraAtual?.total ?? dados.kpis.faturamentoTotal)}
               detalhe={`Média mensal de ${brl(faturamentoSafraAtual?.media ?? dados.kpis.faturamentoMedio)}`}
               tom="positivo"
+              destaque
             />
             <Kpi
               rotulo="Carteira a receber"
               valor={brl(dados.kpis.carteiraTotal)}
               detalhe={`${dados.kpis.titulos.toLocaleString("pt-BR")} títulos · ${dados.kpis.clientes} clientes`}
+              tom="aviso"
+              destaque
             />
             <Kpi
               rotulo="Em atraso"
               valor={brl(dados.kpis.emAtraso)}
               detalhe={`A vencer: ${brl(dados.kpis.aVencer)}`}
               tom="alerta"
+              destaque
             />
             <Kpi
               rotulo="% Inadimplência"
               valor={pct(dados.kpis.pctInadimplencia)}
               detalhe="Vencido sobre a carteira total"
               tom="alerta"
+              destaque
             />
           </div>
 
