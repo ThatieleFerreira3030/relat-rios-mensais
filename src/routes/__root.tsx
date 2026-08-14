@@ -131,23 +131,26 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background">
-        <nav className="border-b border-border bg-card/60 backdrop-blur">
+        <nav className="border-b border-border bg-card/70 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <Link to="/" className="font-display text-base font-semibold text-foreground">
-              Painel Financeiro
+            <Link to="/" className="flex items-center gap-3">
+              <img src="/logo-lage.png" alt="Grupo Otávio Lage" className="h-7 w-auto sm:h-8" />
+              <span className="hidden font-display text-base font-semibold text-foreground sm:inline">
+                Painel Financeiro
+              </span>
             </Link>
             <div className="flex items-center gap-2 text-sm">
               <Link
                 to="/"
                 activeOptions={{ exact: true }}
-                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                className="rounded-full px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:text-foreground"
                 activeProps={{ className: "bg-secondary text-foreground" }}
               >
                 Painel
               </Link>
               <Link
                 to="/enviar"
-                className="rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                className="rounded-full bg-primary px-3 py-1.5 font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
               >
                 Enviar planilha
               </Link>
