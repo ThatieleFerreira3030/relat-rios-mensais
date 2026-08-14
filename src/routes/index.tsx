@@ -167,17 +167,22 @@ function Painel() {
     };
   }, [comparativoSafra, ajusteInadimplencia]);
 
-  const mediaInadimplencia12Meses = useMemo(() => {
-    const valores = serieRecente
-      .map((m) =>
-        pctInadimplencia(
-          m.aReceber,
-          m.inadimplencia === null ? null : Math.max(0, m.inadimplencia - ajusteInadimplencia),
-        ),
-      )
-      .filter((v): v is number => v !== null);
-    return valores.length ? valores.reduce((s, v) => s + v, 0) / valores.length : null;
-  }, [serieRecente, ajusteInadimplencia]);
+  const mediaMovel12MesesPorMes = useMemo(() => {
+    const mapa = new Map<string, number | null>();
+    serie.forEach((m, i) => {
+      const janela = serie.slice(Math.max(0, i - 11), i + 1);
+      const valores = janela
+        .map((j) =>
+          pctInadimplencia(
+            j.aReceber,
+            j.inadimplencia === null ? null : Math.max(0, j.inadimplencia - ajusteInadimplencia),
+          ),
+        )
+        .filter((v): v is number => v !== null);
+      mapa.set(m.mes, valores.length ? valores.reduce((s, v) => s + v, 0) / valores.length : null);
+    });
+    return mapa;
+  }, [serie, ajusteInadimplencia]);
 
   const evolucaoInadimplenciaAtual = useMemo(() => {
     if (!comparativoSafra) return [];
@@ -188,10 +193,10 @@ function Painel() {
         rotulo: rotuloMes(m.mes),
         inadimplencia: inadimplenciaAjustada,
         pctInad: pctInadimplencia(m.aReceber, inadimplenciaAjustada),
-        media12m: mediaInadimplencia12Meses,
+        media12m: mediaMovel12MesesPorMes.get(m.mes) ?? null,
       };
     });
-  }, [comparativoSafra, ajusteInadimplencia, mediaInadimplencia12Meses]);
+  }, [comparativoSafra, ajusteInadimplencia, mediaMovel12MesesPorMes]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
