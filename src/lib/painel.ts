@@ -239,7 +239,16 @@ type Linha = Record<string, unknown>;
 function lerAba(wb: XLSX.WorkBook, nome: string): Linha[] {
   const ws = wb.Sheets[nome];
   if (!ws) return [];
-  return XLSX.utils.sheet_to_json<Linha>(ws, { defval: null });
+  const linhas = XLSX.utils.sheet_to_json<Linha>(ws, { defval: null });
+  // Algumas exportações trazem cabeçalhos com espaços (ex.: " ValorLiquido "),
+  // o que quebra silenciosamente as buscas por nome de coluna abaixo.
+  return linhas.map((l) => {
+    const normalizada: Linha = {};
+    for (const [chave, valor] of Object.entries(l)) {
+      normalizada[chave.trim()] = valor;
+    }
+    return normalizada;
+  });
 }
 
 /**
