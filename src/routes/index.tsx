@@ -77,6 +77,10 @@ function Painel() {
     queryFn: buscarUltimo,
   });
   const [mesSelecionado, setMesSelecionado] = useState<string | null>(null);
+  const [ordenacaoAging, setOrdenacaoAging] = useState<{
+    coluna: string;
+    direcao: "asc" | "desc";
+  }>({ coluna: "total", direcao: "desc" });
 
   // Bases antigas podem não ter todos os campos; normaliza para evitar quebra.
   const dados = useMemo(() => {
@@ -197,6 +201,46 @@ function Painel() {
       };
     });
   }, [comparativoSafra, ajusteInadimplencia, mediaMovel12MesesPorMes]);
+
+  const agingPorClienteOrdenado = useMemo(() => {
+    const lista = [...(dados?.agingPorCliente ?? [])];
+    const fator = ordenacaoAging.direcao === "asc" ? 1 : -1;
+
+    return lista.sort((a, b) => {
+      if (ordenacaoAging.coluna === "cliente") {
+        return (
+          a.nome.localeCompare(b.nome, "pt-BR", {
+            sensitivity: "base",
+            numeric: true,
+          }) * fator
+        );
+      }
+
+      const valorA =
+        ordenacaoAging.coluna === "total"
+          ? a.total
+          : (a.faixas[ordenacaoAging.coluna] ?? 0);
+      const valorB =
+        ordenacaoAging.coluna === "total"
+          ? b.total
+          : (b.faixas[ordenacaoAging.coluna] ?? 0);
+
+      return (valorA - valorB) * fator || a.nome.localeCompare(b.nome, "pt-BR");
+    });
+  }, [dados, ordenacaoAging]);
+
+  function alternarOrdenacaoAging(coluna: string) {
+    setOrdenacaoAging((atual) => ({
+      coluna,
+      direcao:
+        atual.coluna === coluna && atual.direcao === "asc" ? "desc" : "asc",
+    }));
+  }
+
+  function indicadorOrdenacaoAging(coluna: string) {
+    if (ordenacaoAging.coluna !== coluna) return "↕";
+    return ordenacaoAging.direcao === "asc" ? "↑" : "↓";
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
@@ -561,22 +605,79 @@ function Painel() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                      <th className="sticky top-0 z-10 bg-card py-2 pr-4 font-medium">Cliente</th>
+                      <th
+                        className="sticky top-0 z-10 bg-card py-2 pr-4 font-medium"
+                        aria-sort={
+                          ordenacaoAging.coluna === "cliente"
+                            ? ordenacaoAging.direcao === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() => alternarOrdenacaoAging("cliente")}
+                          className="flex w-full items-center gap-1.5 text-left transition-colors hover:text-foreground"
+                          title="Classificar por cliente"
+                        >
+                          Cliente
+                          <span aria-hidden="true" className="text-sm normal-case">
+                            {indicadorOrdenacaoAging("cliente")}
+                          </span>
+                        </button>
+                      </th>
                       {FAIXAS_TABELA.map((faixa) => (
                         <th
                           key={faixa}
                           className="sticky top-0 z-10 bg-card py-2 pr-4 text-right font-medium"
+                          aria-sort={
+                            ordenacaoAging.coluna === faixa
+                              ? ordenacaoAging.direcao === "asc"
+                                ? "ascending"
+                                : "descending"
+                              : "none"
+                          }
                         >
-                          {faixa}
+                          <button
+                            type="button"
+                            onClick={() => alternarOrdenacaoAging(faixa)}
+                            className="flex w-full items-center justify-end gap-1.5 transition-colors hover:text-foreground"
+                            title={`Classificar por ${faixa}`}
+                          >
+                            {faixa}
+                            <span aria-hidden="true" className="text-sm normal-case">
+                              {indicadorOrdenacaoAging(faixa)}
+                            </span>
+                          </button>
                         </th>
                       ))}
-                      <th className="sticky top-0 z-10 bg-card py-2 text-right font-medium">
-                        Total
+                      <th
+                        className="sticky top-0 z-10 bg-card py-2 text-right font-medium"
+                        aria-sort={
+                          ordenacaoAging.coluna === "total"
+                            ? ordenacaoAging.direcao === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() => alternarOrdenacaoAging("total")}
+                          className="flex w-full items-center justify-end gap-1.5 transition-colors hover:text-foreground"
+                          title="Classificar pelo total"
+                        >
+                          Total
+                          <span aria-hidden="true" className="text-sm normal-case">
+                            {indicadorOrdenacaoAging("total")}
+                          </span>
+                        </button>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {dados.agingPorCliente.map((c) => (
+                    {agingPorClienteOrdenado.map((c) => (
                       <tr key={c.nome}>
                         <td className="py-2.5 pr-4">{c.nome}</td>
                         {FAIXAS_TABELA.map((faixa) => (
