@@ -43,7 +43,18 @@ function Enviar() {
       const arquivos = await Promise.all(
         Array.from(lista).map(async (f) => ({ nome: f.name, buffer: await f.arrayBuffer() })),
       );
-      const dados = analisarPlanilhas(arquivos);
+      const { data: baseAtual, error: erroBaseAtual } = await supabase
+        .from("painel_uploads")
+        .select("dados")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (erroBaseAtual) throw erroBaseAtual;
+
+      const dados = analisarPlanilhas(
+        arquivos,
+        baseAtual?.dados as unknown as PainelDados | undefined,
+      );
       setPrevia(dados);
       if (!rotulo && dados.periodo.fim) {
         setRotulo(`Fechamento ${rotuloMes(dados.periodo.fim)}`);
@@ -83,12 +94,17 @@ function Enviar() {
         <p className="mt-2 text-sm text-muted-foreground">
           Envie a planilha estruturada (abas <strong>F_Vendas</strong>, <strong>F_Carteira</strong>,{" "}
           <strong>D_Clientes</strong>) e, se quiser, o resumo com a aba <strong>Base_Dados</strong>.
-          Os indicadores são calculados no seu navegador e publicados no painel.
+          A planilha de cobrança com as colunas <strong>Cliente</strong>, <strong>Observação</strong> e{" "}
+          <strong>Responsável</strong> também pode ser enviada junto ou sozinha para atualizar apenas
+          as situações dos clientes.
         </p>
       </header>
 
       <div className="space-y-6">
-        <Secao titulo="1. Selecione os arquivos" descricao="Aceita .xlsx — pode enviar os dois de uma vez.">
+        <Secao
+          titulo="1. Selecione os arquivos"
+          descricao="Aceita .xlsx e .xls — envie as bases financeiras e/ou a planilha de cobrança."
+        >
           <input
             type="file"
             accept=".xlsx,.xls"
@@ -126,6 +142,14 @@ function Enviar() {
                     Clientes
                   </dt>
                   <dd className="mt-1 text-sm font-medium">{previa.kpis.clientes}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Situações de cobrança
+                  </dt>
+                  <dd className="mt-1 text-sm font-medium">
+                    {(previa.situacoesCobranca ?? []).length.toLocaleString("pt-BR")} clientes
+                  </dd>
                 </div>
               </dl>
             </Secao>
