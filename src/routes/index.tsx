@@ -60,6 +60,14 @@ const MESES_EVOLUCAO = 12;
 // mês a mês, então o ajuste usa o total atual dele como valor fixo).
 const CLIENTE_EXCLUIDO_INADIMPLENCIA = "alessandro maia de souza";
 
+function chaveCliente(nome: string) {
+  return nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase();
+}
+
 async function buscarUltimo() {
   const { data, error } = await supabase
     .from("painel_uploads")
@@ -86,13 +94,26 @@ function Painel() {
   const dados = useMemo(() => {
     const d = data?.dados;
     if (!d) return undefined;
+
+    // Os saldos exibidos em "Em carteira" vêm da abertura calculada
+    // diretamente a partir da aba F_Carteira.
+    const agingPorCliente = d.agingPorCliente ?? [];
+    const saldosCarteira = new Map<string, number>();
+    for (const cliente of agingPorCliente) {
+      const chave = chaveCliente(cliente.nome);
+      saldosCarteira.set(chave, (saldosCarteira.get(chave) ?? 0) + cliente.total);
+    }
+
     return {
       ...d,
       meses: d.meses ?? [],
       aging: d.aging ?? [],
-      topClientes: d.topClientes ?? [],
+      topClientes: (d.topClientes ?? []).map((cliente) => ({
+        ...cliente,
+        carteira: saldosCarteira.get(chaveCliente(cliente.nome)) ?? 0,
+      })),
       topDevedores: d.topDevedores ?? [],
-      agingPorCliente: d.agingPorCliente ?? [],
+      agingPorCliente,
       periodo: d.periodo ?? { inicio: "", fim: "" },
     };
   }, [data]);
