@@ -26,6 +26,12 @@ export type PainelDados = {
   topClientes: { nome: string; faturado: number; carteira: number }[];
   topDevedores: { nome: string; valor: number }[];
   agingPorCliente: { nome: string; faixas: Record<string, number>; total: number }[];
+  situacoesCobranca: {
+    nome: string;
+    observacao: string;
+    responsavel: string;
+  }[];
+  fonteSituacao?: string;
   fonte: string;
 };
 
@@ -260,6 +266,89 @@ function lerAba(wb: XLSX.WorkBook, nome: string): Linha[] {
   });
 }
 
+function normalizarTexto(valor: unknown) {
+  return String(valor ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+}
+
+function textoSituacao(valor: unknown) {
+  const texto = String(valor ?? "").trim();
+  return texto === "-" ? "" : texto;
+}
+
+type SituacaoCobranca = PainelDados["situacoesCobranca"][number];
+
+function lerSituacoesCobranca(wb: XLSX.WorkBook): {
+  encontrada: boolean;
+  situacoes: SituacaoCobranca[];
+} {
+  const consolidadas = new Map<
+    string,
+    { nome: string; observacoes: Set<string>; responsaveis: Set<string> }
+  >();
+  let encontrada = false;
+
+  for (const nomeAba of wb.SheetNames) {
+    const ws = wb.Sheets[nomeAba];
+    if (!ws) continue;
+    const linhas = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+      header: 1,
+      defval: null,
+      raw: true,
+    });
+    const indiceCabecalho = linhas.findIndex((linha) => {
+      const colunas = linha.map(normalizarTexto);
+      return (
+        colunas.includes("CLIENTE") &&
+        colunas.includes("OBSERVACAO") &&
+        colunas.includes("RESPONSAVEL")
+      );
+    });
+    if (indiceCabecalho < 0) continue;
+
+    encontrada = true;
+    const cabecalho = linhas[indiceCabecalho]!.map(normalizarTexto);
+    const colunaCliente = cabecalho.indexOf("CLIENTE");
+    const colunaObservacao = cabecalho.indexOf("OBSERVACAO");
+    const colunaResponsavel = cabecalho.indexOf("RESPONSAVEL");
+    let clienteAtual = "";
+
+    for (const linha of linhas.slice(indiceCabecalho + 1)) {
+      const clienteLinha = textoSituacao(linha[colunaCliente]);
+      if (clienteLinha && normalizarTexto(clienteLinha) !== "VALOR TOTAL") {
+        clienteAtual = clienteLinha;
+      }
+      if (!clienteAtual) continue;
+
+      const observacao = textoSituacao(linha[colunaObservacao]);
+      const responsavel = textoSituacao(linha[colunaResponsavel]);
+      if (!observacao && !responsavel) continue;
+
+      const chave = normalizarTexto(clienteAtual).replace(/[^A-Z0-9]/g, "");
+      const atual = consolidadas.get(chave) ?? {
+        nome: clienteAtual,
+        observacoes: new Set<string>(),
+        responsaveis: new Set<string>(),
+      };
+      if (observacao) atual.observacoes.add(observacao);
+      if (responsavel) atual.responsaveis.add(responsavel);
+      consolidadas.set(chave, atual);
+    }
+  }
+
+  return {
+    encontrada,
+    situacoes: Array.from(consolidadas.values()).map((item) => ({
+      nome: item.nome,
+      observacao: Array.from(item.observacoes).join("\n"),
+      responsavel: Array.from(item.responsaveis).join(", "),
+    })),
+  };
+}
+
 /**
  * Lê uma ou mais planilhas no mesmo formato do modelo do Power BI
  * (abas F_Vendas / F_Carteira / D_Clientes e/ou Base_Dados) e devolve
@@ -267,11 +356,15 @@ function lerAba(wb: XLSX.WorkBook, nome: string): Linha[] {
  */
 export function analisarPlanilhas(
   arquivos: { nome: string; buffer: ArrayBuffer }[],
+  baseAtual?: PainelDados,
 ): PainelDados {
   const vendas: Linha[] = [];
   const carteira: Linha[] = [];
   const clientes: Linha[] = [];
   const baseResumo: Linha[] = [];
+  const situacoes = new Map<string, SituacaoCobranca>();
+  const fontesSituacao: string[] = [];
+  let encontrouPlanilhaSituacao = false;
 
   for (const arq of arquivos) {
     const wb = XLSX.read(arq.buffer, { type: "array", cellDates: true });
@@ -279,11 +372,31 @@ export function analisarPlanilhas(
     carteira.push(...lerAba(wb, "F_Carteira"));
     clientes.push(...lerAba(wb, "D_Clientes"));
     baseResumo.push(...lerAba(wb, "Base_Dados"));
+
+    const leituraSituacao = lerSituacoesCobranca(wb);
+    if (leituraSituacao.encontrada) {
+      encontrouPlanilhaSituacao = true;
+      fontesSituacao.push(arq.nome);
+      for (const situacao of leituraSituacao.situacoes) {
+        const chave = normalizarTexto(situacao.nome).replace(/[^A-Z0-9]/g, "");
+        situacoes.set(chave, situacao);
+      }
+    }
   }
 
-  if (!vendas.length && !baseResumo.length) {
+  const possuiDadosFinanceiros = vendas.length > 0 || baseResumo.length > 0;
+  if (!possuiDadosFinanceiros) {
+    if (encontrouPlanilhaSituacao && baseAtual) {
+      return {
+        ...baseAtual,
+        situacoesCobranca: Array.from(situacoes.values()),
+        fonteSituacao: fontesSituacao.join(" + "),
+      };
+    }
     throw new Error(
-      "Não encontrei as abas esperadas (F_Vendas, F_Carteira, D_Clientes ou Base_Dados) na planilha enviada.",
+      encontrouPlanilhaSituacao
+        ? "A planilha de cobrança foi identificada, mas ainda não existe uma base financeira publicada para vinculá-la."
+        : "Não encontrei as abas esperadas (F_Vendas, F_Carteira, D_Clientes ou Base_Dados) nem uma planilha com Cliente, Observação e Responsável.",
     );
   }
 
@@ -409,6 +522,15 @@ export function analisarPlanilhas(
     topClientes,
     topDevedores,
     agingPorCliente,
-    fonte: arquivos.map((a) => a.nome).join(" + "),
+    situacoesCobranca: encontrouPlanilhaSituacao
+      ? Array.from(situacoes.values())
+      : (baseAtual?.situacoesCobranca ?? []),
+    fonteSituacao: encontrouPlanilhaSituacao
+      ? fontesSituacao.join(" + ")
+      : baseAtual?.fonteSituacao,
+    fonte: arquivos
+      .filter((a) => !fontesSituacao.includes(a.nome))
+      .map((a) => a.nome)
+      .join(" + "),
   };
 }
