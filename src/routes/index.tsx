@@ -74,6 +74,12 @@ function chaveCliente(nome: string) {
     .toLowerCase();
 }
 
+function clienteEmAtraso(faixas: Record<string, number>) {
+  return ORDEM_FAIXAS.some(
+    (faixa) => faixa !== "Em Dia" && (faixas[faixa] ?? 0) > 0,
+  );
+}
+
 function ValorComSituacao({
   valor,
   situacao,
@@ -773,7 +779,11 @@ function Painel() {
                             {c.faixas[faixa] ? (
                               <ValorComSituacao
                                 valor={brl(c.faixas[faixa])}
-                                situacao={situacoesPorCliente.get(chaveCliente(c.nome))}
+                                situacao={
+                                  clienteEmAtraso(c.faixas)
+                                    ? situacoesPorCliente.get(chaveCliente(c.nome))
+                                    : undefined
+                                }
                               />
                             ) : (
                               "—"
@@ -783,7 +793,11 @@ function Painel() {
                         <td className="py-2.5 text-right font-medium">
                           <ValorComSituacao
                             valor={brl(c.total)}
-                            situacao={situacoesPorCliente.get(chaveCliente(c.nome))}
+                            situacao={
+                                  clienteEmAtraso(c.faixas)
+                                    ? situacoesPorCliente.get(chaveCliente(c.nome))
+                                    : undefined
+                                }
                           />
                         </td>
                       </tr>
