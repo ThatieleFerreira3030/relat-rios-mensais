@@ -33,10 +33,15 @@ function Enviar() {
   const [previa, setPrevia] = useState<PainelDados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [tipoImportacao, setTipoImportacao] = useState<"financeiro" | "cobranca" | null>(null);
 
-  async function lerArquivos(lista: FileList | null) {
+  async function lerArquivos(
+    lista: FileList | null,
+    tipo: "financeiro" | "cobranca",
+  ) {
     setErro(null);
     setPrevia(null);
+    setTipoImportacao(tipo);
     if (!lista || !lista.length) return;
     setOcupado(true);
     try {
@@ -56,7 +61,11 @@ function Enviar() {
         baseAtual?.dados as unknown as PainelDados | undefined,
       );
       setPrevia(dados);
-      if (!rotulo && dados.periodo.fim) {
+      if (tipo === "cobranca") {
+        setRotulo(
+          `Atualização de cobrança ${new Date().toLocaleDateString("pt-BR")}`,
+        );
+      } else if (!rotulo && dados.periodo.fim) {
         setRotulo(`Fechamento ${rotuloMes(dados.periodo.fim)}`);
       }
     } catch (e) {
@@ -88,80 +97,136 @@ function Enviar() {
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
       <header className="mb-8">
         <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground">
-          Atualização mensal
+          Atualização do painel
         </span>
-        <h1 className="mt-3 text-3xl text-foreground">Enviar planilha do mês</h1>
+        <h1 className="mt-3 text-3xl text-foreground">Importar planilhas</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Envie a planilha estruturada (abas <strong>F_Vendas</strong>, <strong>F_Carteira</strong>,{" "}
-          <strong>D_Clientes</strong>) e, se quiser, o resumo com a aba <strong>Base_Dados</strong>.
-          A planilha de cobrança com as colunas <strong>Cliente</strong>, <strong>Observação</strong> e{" "}
-          <strong>Responsável</strong> também pode ser enviada junto ou sozinha para atualizar apenas
-          as situações dos clientes.
+          Escolha abaixo o tipo de atualização. A posição de inadimplentes pode
+          ser importada separadamente e não altera os valores financeiros do
+          painel.
         </p>
       </header>
 
       <div className="space-y-6">
         <Secao
-          titulo="1. Selecione os arquivos"
-          descricao="Aceita .xlsx e .xls — envie as bases financeiras e/ou a planilha de cobrança."
+          titulo="1. Dados financeiros"
+          descricao="Atualize faturamento, carteira e indicadores pelas abas F_Vendas, F_Carteira, D_Clientes e Base_Dados."
         >
           <input
             type="file"
             accept=".xlsx,.xls"
             multiple
-            onChange={(e) => lerArquivos(e.target.files)}
-            className="block w-full cursor-pointer rounded-xl border border-dashed border-input bg-background p-4 text-sm file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
+            onChange={(e) => lerArquivos(e.target.files, "financeiro")}
+            disabled={ocupado}
+            className="block w-full cursor-pointer rounded-xl border border-dashed border-input bg-background p-4 text-sm file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
           />
-          {erro ? <p className="mt-3 text-sm text-destructive">{erro}</p> : null}
+          {tipoImportacao === "financeiro" && erro ? (
+            <p className="mt-3 text-sm text-destructive">{erro}</p>
+          ) : null}
+        </Secao>
+
+        <Secao
+          titulo="2. Posição de inadimplentes"
+          descricao="Importe a planilha com as colunas Cliente, Observação e Responsável. Vencimentos e valores desse arquivo serão ignorados."
+        >
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={(e) => lerArquivos(e.target.files, "cobranca")}
+            disabled={ocupado}
+            className="block w-full cursor-pointer rounded-xl border border-dashed border-input bg-background p-4 text-sm file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          />
+          <p className="mt-3 text-xs text-muted-foreground">
+            O site localizará automaticamente o cabeçalho, mesmo que ele não
+            esteja na primeira linha da planilha.
+          </p>
+          {tipoImportacao === "cobranca" && erro ? (
+            <p className="mt-3 text-sm text-destructive">{erro}</p>
+          ) : null}
         </Secao>
 
         {previa ? (
           <>
-            <Secao titulo="2. Confira a leitura" descricao="Resumo do que foi identificado nos arquivos.">
-              <dl className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">Período</dt>
-                  <dd className="mt-1 text-sm font-medium">
-                    {rotuloMes(previa.periodo.inicio)} a {rotuloMes(previa.periodo.fim)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">Meses</dt>
-                  <dd className="mt-1 text-sm font-medium">{previa.meses.length}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Títulos em carteira
-                  </dt>
-                  <dd className="mt-1 text-sm font-medium">
-                    {previa.kpis.titulos.toLocaleString("pt-BR")}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Clientes
-                  </dt>
-                  <dd className="mt-1 text-sm font-medium">{previa.kpis.clientes}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Situações de cobrança
-                  </dt>
-                  <dd className="mt-1 text-sm font-medium">
+            <Secao
+              titulo="3. Confira a leitura"
+              descricao={
+                tipoImportacao === "cobranca"
+                  ? "Confira as situações identificadas antes de atualizar os balões."
+                  : "Resumo dos dados financeiros identificados."
+              }
+            >
+              {tipoImportacao === "cobranca" ? (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-sm font-medium text-foreground">
                     {(previa.situacoesCobranca ?? []).length.toLocaleString("pt-BR")} clientes
-                  </dd>
+                    com situação de cobrança identificada
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Responsável e observação serão exibidos nos balões. Os valores
+                    financeiros atuais permanecerão inalterados.
+                  </p>
                 </div>
-              </dl>
+              ) : (
+                <dl className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Período
+                    </dt>
+                    <dd className="mt-1 text-sm font-medium">
+                      {rotuloMes(previa.periodo.inicio)} a {rotuloMes(previa.periodo.fim)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Meses
+                    </dt>
+                    <dd className="mt-1 text-sm font-medium">{previa.meses.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Títulos em carteira
+                    </dt>
+                    <dd className="mt-1 text-sm font-medium">
+                      {previa.kpis.titulos.toLocaleString("pt-BR")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Clientes
+                    </dt>
+                    <dd className="mt-1 text-sm font-medium">{previa.kpis.clientes}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Situações preservadas
+                    </dt>
+                    <dd className="mt-1 text-sm font-medium">
+                      {(previa.situacoesCobranca ?? []).length.toLocaleString("pt-BR")} clientes
+                    </dd>
+                  </div>
+                </dl>
+              )}
             </Secao>
 
-            <Secao titulo="3. Publicar" descricao="O painel passa a exibir esta base como a mais recente.">
+            <Secao
+              titulo="4. Publicar"
+              descricao={
+                tipoImportacao === "cobranca"
+                  ? "Após publicar, os balões serão atualizados nas duas visões do painel."
+                  : "O painel passará a exibir esta base financeira como a mais recente."
+              }
+            >
               <label className="block text-sm">
                 <span className="text-muted-foreground">Nome desta atualização</span>
                 <input
                   value={rotulo}
                   onChange={(e) => setRotulo(e.target.value)}
                   className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                  placeholder="Fechamento mai/26"
+                  placeholder={
+                    tipoImportacao === "cobranca"
+                      ? "Atualização de cobrança"
+                      : "Fechamento mai/26"
+                  }
                 />
               </label>
               <button
@@ -169,7 +234,11 @@ function Enviar() {
                 disabled={ocupado}
                 className="mt-4 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {ocupado ? "Publicando…" : "Publicar no painel"}
+                {ocupado
+                  ? "Publicando…"
+                  : tipoImportacao === "cobranca"
+                    ? "Atualizar balões no painel"
+                    : "Publicar dados financeiros"}
               </button>
             </Secao>
           </>
