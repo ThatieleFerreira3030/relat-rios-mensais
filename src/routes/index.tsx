@@ -17,6 +17,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Kpi, Secao } from "@/components/painel/ui";
 import {
+  Tooltip as HoverTooltip,
+  TooltipContent as HoverTooltipContent,
+  TooltipProvider as HoverTooltipProvider,
+  TooltipTrigger as HoverTooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   agruparPorSafra,
   brl,
   compararComSafraAnterior,
@@ -68,6 +74,50 @@ function chaveCliente(nome: string) {
     .toLowerCase();
 }
 
+function ValorComSituacao({
+  valor,
+  situacao,
+  className,
+}: {
+  valor: string;
+  situacao?: { observacao: string; responsavel: string };
+  className?: string;
+}) {
+  if (!situacao || (!situacao.observacao && !situacao.responsavel)) {
+    return <span className={className}>{valor}</span>;
+  }
+
+  return (
+    <HoverTooltip>
+      <HoverTooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          className={`cursor-help underline decoration-dotted underline-offset-4 ${className ?? ""}`}
+        >
+          {valor}
+        </span>
+      </HoverTooltipTrigger>
+      <HoverTooltipContent
+        side="top"
+        className="max-w-[22rem] border border-border bg-card px-4 py-3 text-left text-card-foreground shadow-lg"
+      >
+        <div className="space-y-2 normal-case tracking-normal">
+          {situacao.responsavel ? (
+            <p>
+              <span className="font-semibold">Responsável:</span> {situacao.responsavel}
+            </p>
+          ) : null}
+          {situacao.observacao ? (
+            <p className="whitespace-pre-line leading-relaxed">
+              <span className="font-semibold">Observação:</span> {situacao.observacao}
+            </p>
+          ) : null}
+        </div>
+      </HoverTooltipContent>
+    </HoverTooltip>
+  );
+}
+
 async function buscarUltimo() {
   const { data, error } = await supabase
     .from("painel_uploads")
@@ -114,9 +164,21 @@ function Painel() {
       })),
       topDevedores: d.topDevedores ?? [],
       agingPorCliente,
+      situacoesCobranca: d.situacoesCobranca ?? [],
       periodo: d.periodo ?? { inicio: "", fim: "" },
     };
   }, [data]);
+
+  const situacoesPorCliente = useMemo(() => {
+    const mapa = new Map<string, { observacao: string; responsavel: string }>();
+    for (const situacao of dados?.situacoesCobranca ?? []) {
+      mapa.set(chaveCliente(situacao.nome), {
+        observacao: situacao.observacao,
+        responsavel: situacao.responsavel,
+      });
+    }
+    return mapa;
+  }, [dados]);
 
   const serie = useMemo(
     () =>
@@ -264,7 +326,8 @@ function Painel() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
+    <HoverTooltipProvider delayDuration={250}>
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
       <header className="mb-8">
         <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground">
           Relatório mensal
@@ -610,7 +673,11 @@ function Painel() {
                       <span className="mr-2 text-muted-foreground">{i + 1}.</span>
                       {d.nome}
                     </span>
-                    <span className="shrink-0 font-medium text-destructive">{brl(d.valor)}</span>
+                    <ValorComSituacao
+                      valor={brl(d.valor)}
+                      situacao={situacoesPorCliente.get(chaveCliente(d.nome))}
+                      className="shrink-0 font-medium text-destructive"
+                    />
                   </li>
                 ))}
               </ol>
@@ -703,10 +770,22 @@ function Painel() {
                         <td className="py-2.5 pr-4">{c.nome}</td>
                         {FAIXAS_TABELA.map((faixa) => (
                           <td key={faixa} className="py-2.5 pr-4 text-right text-muted-foreground">
-                            {c.faixas[faixa] ? brl(c.faixas[faixa]) : "—"}
+                            {c.faixas[faixa] ? (
+                              <ValorComSituacao
+                                valor={brl(c.faixas[faixa])}
+                                situacao={situacoesPorCliente.get(chaveCliente(c.nome))}
+                              />
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         ))}
-                        <td className="py-2.5 text-right font-medium">{brl(c.total)}</td>
+                        <td className="py-2.5 text-right font-medium">
+                          <ValorComSituacao
+                            valor={brl(c.total)}
+                            situacao={situacoesPorCliente.get(chaveCliente(c.nome))}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -797,7 +876,8 @@ function Painel() {
           </p>
         </div>
       )}
-    </main>
+      </main>
+    </HoverTooltipProvider>
   );
 }
 
